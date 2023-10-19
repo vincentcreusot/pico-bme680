@@ -1,0 +1,11 @@
+{
+    "mqtt": {
+        "broker": "<broker address>",
+        "topic": "<topic name>",
+        "cert_key": "<path to cert key>",
+        "cert_pem": "<path to certificate>",
+        "cert_ca": "<path to CA cert>",
+        "wifi_ssid": "<ssid of wifi to use>",
+        "wifi_password": "<password of wifi to use>"
+    }
+}
