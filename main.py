@@ -1,8 +1,7 @@
 import bme680
 from machine import I2C, Pin, Timer
-
+from wifi import connect_wifi
 import time
-import ntptime
 import ujson
 import mqtt_connect
 import sys
@@ -14,38 +13,30 @@ except OSError as e:
     sys.exit(5)
     
 config = ujson.loads(f.read())
-broker = config['mqtt']['broker']
-key = config["mqtt"]["cert_key"]
-cert = config["mqtt"]["cert_pem"]
-ca = config["mqtt"]["cert_ca"]
+led = Pin("LED", Pin.OUT)
+led.on()
+time.sleep(2)
+led.off()
+
 wifi_ssid = config["mqtt"]["wifi_ssid"]
 wifi_password = config["mqtt"]["wifi_password"]
+connect_wifi(wifi_ssid, wifi_password)
+led.on()
+time.sleep(2)
+led.off()
 
-mqtt_temperature_topic = config["mqtt"]["topic"]
-
-mc = mqtt_connect.get_mqtt_client(broker, key, cert, ca)
-
-def pingmc(t):
-    mc.ping()
-    
-mqtt_connect.connect_wifi(wifi_ssid, wifi_password)
-
-# update the current time on the board using NTP
-ntptime.settime()
-
-mc.connect()
-# create timer for periodic MQTT ping messages for keep-alive
-mqtt_ping_timer = Timer(
-    mode=Timer.PERIODIC, period=mc.keepalive * 1000, callback=pingmc
-)
-
-i2c = I2C(id=0, scl=Pin(17), sda=Pin(16))
+i2c = I2C(id=0, scl=Pin(17), sda=Pin(16), freq=200000)
 print('Scan i2c bus...')
 devices = i2c.scan()
+led.on()
+time.sleep(2)
+led.off()
 
 bme = bme680.BME680_I2C(i2c=i2c, address=118)
 print('Connected to sensor')
 while True:
+    led.on()
+    mc = mqtt_connect.MQTT(config)
     gas_value = str(bme.gas)
     temp_value = bme.temperature
     humid_value = bme.humidity
@@ -62,9 +53,12 @@ while True:
     "altitude": "{a:.2f}"
 }}'''.format(t = temp_value, h = humid_value, p = press_value, g = gas_value, a = alt_value, T = ltime)
     print('sending {temperatureStr}', temperatureStr)
-    mc.publish(mqtt_temperature_topic, temperatureStr)
+    mc.publish(temperatureStr)
     print("published")
-    time.sleep(60)
+    mc.disconnect()
+    led.off()
+    # Sleeping deep for 30 seconds
+    time.sleep_ms(30000)
     
 
 
